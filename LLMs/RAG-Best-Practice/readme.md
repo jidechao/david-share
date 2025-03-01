@@ -1,462 +1,436 @@
-# RAG Best Practice With AI Search
+# 使用AI搜索的RAG最佳实践
 
-Although models like GPT-4 and GPT-3.5 are powerful, their knowledge cannot be the most up-to-date. Previously, we often introduced engineering techniques in the use of LLMs by treating prompt engineering, RAG, and fine-tuning as parallel methods. In fact, these three technologies can be combined.
+尽管像GPT-4和GPT-3.5这样的模型非常强大，但它们的知识可能不是最新的。以前，我们经常在LLM的使用中引入工程技术，将提示工程、RAG和微调视为并行的方法。事实上，这三种技术可以结合起来使用。
 
-##  Four stages of RAG
+## RAG的四个阶段
 
- The thinking in the paper I read is excellent—it divides RAG into four stages. 
+我读到的论文中的思路非常出色——它将RAG分为四个阶段。
 
- ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUtDdUuMGNicTShl7ib3NKD1NlRyzggptGGCpJs4YOreYt9tqTxjfGsvKlIkSVMHadX0tVKJT2PaP4A/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUtDdUuMGNicTShl7ib3NKD1NlRyzggptGGCpJs4YOreYt9tqTxjfGsvKlIkSVMHadX0tVKJT2PaP4A/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
+## 第一级：显式事实查询
 
+### 特点
 
-## Level 1: Explicit Fact Queries
+**简单性**：直接从提供的数据中检索显式的事实信息，无需复杂的推理或多步处理。
 
-### Characteristics
+**要求**：高效且准确地检索相关内容并生成精确的答案。
 
-**Simplicity**: Directly retrieving explicit factual information from provided data without the need for complex reasoning or multi-step processing.
+### 技术与工程建议
 
-**Requirement**: Efficiently and accurately retrieve relevant content and generate precise answers.
+#### a. 基本RAG方法
 
-### Techniques and Engineering Suggestions
+- 数据预处理和分块
 
-#### a. Basic RAG Methods
+  ：将长文本或文档划分为适当的分块以便索引和检索。常见的分块策略包括：
 
-- Data Preprocessing and Chunking
+  - **固定长度分块**：按固定长度分割文本，可能会打断句子或段落。
+  - **基于段落或语义的分块**：根据自然段落或语义边界进行分块，以保持内容的完整性。
 
-  : Divide long texts or documents into appropriate chunks for indexing and retrieval. Common chunking strategies include:
+- 索引构建：
 
-  - **Fixed-Length Chunking**: Splitting the text by fixed lengths, which may interrupt sentences or paragraphs.
-  - **Paragraph-Based or Semantic Chunking**: Chunking based on natural paragraphs or semantic boundaries to maintain content integrity.
+  - **稀疏索引**：使用传统的信息检索方法，如TF-IDF或BM25，基于关键词匹配。
+  - **密集索引**：使用预训练的语言模型（如BERT）生成文本向量嵌入，用于向量检索。
 
-- Index Construction:
+- 检索技术：
 
-  - **Sparse Indexing**: Use traditional information retrieval methods like TF-IDF or BM25 based on keyword matching.
-  - **Dense Indexing**: Use pre-trained language models (e.g., BERT) to generate text vector embeddings for vector retrieval.
+  - 利用向量相似度计算或关键词匹配从索引中检索最相关的文本片段。
 
-- Retrieval Techniques:
+- 答案生成：
 
-  - Utilize vector similarity calculations or keyword matching to retrieve the most relevant text fragments from the index.
+  - 将检索到的文本片段作为上下文输入LLM，生成最终答案。
 
-- Answer Generation:
+#### b. 改进检索和生成阶段
 
-  - Input the retrieved text fragments as context into the LLM to generate the final answer.
+- **多模态数据处理**：如果数据包含表格、图像或其他非文本信息，将其转换为文本形式或使用多模态模型进行处理。
+- 检索优化：
+  - **递归检索**：当单次检索不足以找到答案时，进行多轮检索，逐步缩小范围。
+  - **检索结果重排序**：使用模型对检索结果进行评分或重排序，优先选择最相关的内容。
+- 生成优化：
+  - **过滤无关信息**：在生成阶段之前，过滤掉与问题无关的检索内容，避免干扰模型的输出。
+  - **控制答案格式**：通过精心设计的提示，确保模型生成格式正确且内容准确的答案。
 
-#### b. Improving Retrieval and Generation Phases
+### 工程实践示例
 
-- **Multimodal Data Processing**: If the data includes tables, images, or other non-text information, convert them into text form or use multimodal models for processing.
-- Retrieval Optimization:
-  - **Recursive Retrieval**: Perform multiple rounds of retrieval when a single retrieval isn't sufficient to find the answer, gradually narrowing down the scope.
-  - **Retrieval Result Re-ranking**: Use models to score or re-rank retrieval results, prioritizing the most relevant content.
-- Generation Optimization:
-  - **Filtering Irrelevant Information**: Before the generation phase, filter out retrieved content unrelated to the question to avoid interfering with the model's output.
-  - **Controlling Answer Format**: Through carefully designed prompts, ensure the model generates answers with correct formatting and accurate content.
+**示例**：构建一个问答系统，回答关于公司产品的常见问题。
 
-### Engineering Practice Example
+- 数据准备：
+  - 收集所有相关的产品文档、常见问题解答、用户手册等。
+  - 清理、分块并索引文档。
+- 系统实现：
+  - 用户提问后，使用密集向量检索从索引中找到最相关的文本片段。
+  - 将检索到的片段作为上下文输入LLM，生成答案。
+- 优化策略：
+  - 定期更新文档和索引，确保信息是最新的。
+  - 监控用户反馈，改进检索策略和提示设计，提高答案质量。
 
-**Example**: Constructing a Q&A system to answer common questions about company products.
+## 第二级：隐式事实查询
 
-- Data Preparation:
-  - Collect all relevant product documents, FAQs, user manuals, etc.
-  - Clean, chunk, and index the documents.
-- System Implementation:
-  - After a user asks a question, use dense vector retrieval to find the most relevant text fragments from the index.
-  - Input the retrieved fragments as context into the LLM to generate an answer.
-- Optimization Strategies:
-  - Regularly update documents and indexes to ensure information is current.
-  - Monitor user feedback to improve retrieval strategies and prompt designs, enhancing answer quality.
+### 特点
 
+- **复杂性增加**：需要基于检索到的数据进行一定程度的推理或多步推导。
+- **要求**：模型需要将问题分解为多个步骤，分别检索和处理，然后综合出最终答案。
 
+### 技术与工程建议
 
-## Level 2: Implicit Fact Queries
+#### a. 多跳检索与推理
 
-### Characteristics 
+- 迭代RAG：
+  - **IRCoT（迭代检索思维链）**：使用思维链推理引导模型在每一步检索相关信息，逐步接近答案。
+  - **RAT（带思考的检索与回答）**：在回答过程中引入检索步骤，允许模型在需要时检索新信息。
+- 问题分解：
+  - 将复杂问题分解为更简单的子问题，分别检索和回答，然后综合结果。
 
-- **Increased Complexity**: Requires a certain degree of reasoning or multi-step derivation based on the retrieved data.
-- **Requirement**: The model needs to decompose the question into multiple steps, retrieve and process them separately, and then synthesize the final answer.
+#### b. 图或树结构的检索与推理
 
-### Techniques and Engineering Suggestions
+- 构建知识图谱：
+  - 从数据中提取实体和关系，构建知识图谱，帮助模型理解复杂的依赖关系。
+- 图搜索算法：
+  - 使用深度优先搜索（DFS）或广度优先搜索（BFS）等算法在知识图谱中查找与问题相关的路径或子图。
 
-#### a. Multi-Hop Retrieval and Reasoning
+#### c. 使用SQL或其他结构化查询
 
-- Iterative RAG:
-  - **IRCoT (Iterative Retrieval Chain-of-Thought)**: Use chain-of-thought reasoning to guide the model in retrieving relevant information at each step, gradually approaching the answer.
-  - **RAT (Retrieve and Answer with Thought)**: Introduce retrieval steps during the answering process, allowing the model to retrieve new information when needed.
-- Question Decomposition:
-  - Break down complex questions into simpler sub-questions, retrieve and answer them individually, then synthesize the results.
+- 文本到SQL转换：
+  - 将自然语言问题转换为SQL查询，从结构化数据库中检索答案。
+- 工具支持：
+  - 使用现有的文本到SQL转换工具（如Chat2DB），促进自然语言到数据库查询的转换。
 
-#### b. Graph or Tree Structured Retrieval and Reasoning
+### 工程实践示例
 
-- Building Knowledge Graphs:
-  - Extract entities and relationships from data to construct knowledge graphs, helping the model understand complex dependencies.
-- Graph Search Algorithms:
-  - Use algorithms like Depth-First Search (DFS) or Breadth-First Search (BFS) to find paths or subgraphs related to the question within the knowledge graph.
+**场景**：用户提问：“过去五年中，公司X的股价在哪些季度超过了公司Y？”
 
-#### c. Using SQL or Other Structured Queries
+**问题分解**：
 
-- Text-to-SQL Conversion:
-  - Convert natural language questions into SQL queries to retrieve answers from structured databases.
-- Tool Support:
-  - Use existing text-to-SQL conversion tools (e.g., Chat2DB) to facilitate natural language to database query conversion.
+1. 获取过去五年公司X和公司Y的季度股价数据。
 
-### 2.3 Engineering Practice Example
+2. 比较每个季度的股价。
 
+3. 找出公司X股价超过公司Y的季度。
 
-**Scenario**: A user asks, "In which quarters over the past five years did company X's stock price exceed company Y's?"
+   **实现步骤**：
 
-**Question Decomposition**:
+- **步骤1**：使用文本到SQL工具将自然语言查询转换为SQL查询，并从数据库中检索相关数据。
 
-1. Obtain quarterly stock price data for company X and company Y over the past five years.
+- **步骤2**：使用编程语言（如Python）处理并比较数据。
 
-2. Compare the stock prices for each quarter.
+- **步骤3**：将结果整理为用户可读的格式。
 
-3. Identify the quarters where company X's stock price exceeded company Y's.
+  **答案生成**：将整理后的结果作为上下文输入LLM，生成自然语言回答。
 
-   **Implementation Steps**:
+## 第三级：可解释的推理查询
 
-- **Step 1**: Use text-to-SQL tools to convert the natural language query into SQL queries and retrieve relevant data from the database.
+### 特点
 
-- **Step 2**: Use a programming language (e.g., Python) to process and compare the data.
+- **应用特定领域的规则和指南**：模型需要理解并遵循通常不在预训练数据中的规则。
+- **要求**：将外部规则、指南或流程集成到模型中，使其在回答时能够遵循指定的逻辑和步骤。
 
-- **Step 3**: Organize the results into a user-readable format.
+### 技术与工程建议
 
-  **Answer Generation**: Input the organized results as context into the LLM to generate a natural language response.
+#### a. 提示工程与提示优化
 
- 
+- 设计有效的提示：
+  - 在提示中明确提供规则或指南，引导模型在回答时遵循指定的步骤。
+- 自动提示优化：
+  - 使用优化算法（如强化学习）自动搜索和优化提示，提高模型在特定任务上的表现。
+  - **OPRO（通过提示重写优化）**：模型自行生成和评估提示，迭代优化以找到最佳提示组合。
 
-## Level 3: Interpretable Rationale Queries
+#### b. 思维链（CoT）提示
 
-### Characteristics
+- 引导多步推理：
+  - 在提示中要求模型展示其推理过程，确保其遵循指定的逻辑。
+- 手动或自动CoT提示设计：
+  - 根据任务需求设计适当的CoT提示，或使用算法自动生成。
 
- 
+#### c. 遵循外部流程或决策树
 
-- **Application of Domain-Specific Rules and Guidelines**: The model needs to understand and follow rules typically not covered in pre-training data.
-- **Requirement**: Integrate external rules, guidelines, or processes into the model so it can follow specified logic and steps when answering.
+- 编码规则和流程：
+  - 将决策流程转换为状态机、决策树或伪代码，供模型执行。
+- 模型调整：
+  - 使模型能够解析并执行这些编码的规则。
 
-### Techniques and Engineering Suggestions
+### 工程实践示例
 
-#### a. Prompt Engineering and Prompt Optimization
+**示例**：处理退货请求的客户服务聊天机器人。
 
-- Designing Effective Prompts:
-  - Explicitly provide rules or guidelines within the prompt to guide the model in following specified steps when answering.
-- Automated Prompt Optimization:
-  - Use optimization algorithms (e.g., reinforcement learning) to automatically search and optimize prompts, improving the model's performance on specific tasks.
-  - **OPRO (Optimization with Prompt Rewriting)**: The model generates and evaluates prompts on its own, iteratively optimizing to find the best prompt combination.
+**场景**：客户请求退货。聊天机器人需要根据公司的退货政策引导客户完成适当的流程。
 
-#### b. Chain-of-Thought (CoT) Prompts
+**技术实现**：
 
-- Guiding Multi-Step Reasoning:
-  - Require the model to display its reasoning process within the prompt, ensuring it follows specified logic.
-- Manual or Automated CoT Prompt Design:
-  - Design appropriate CoT prompts based on task requirements or use algorithms to generate them automatically.
+- 规则集成：
 
-#### c. Following External Processes or Decision Trees
+  - 将公司的退货政策和流程整理为清晰的步骤或决策树。
 
-- Encoding Rules and Processes:
-  - Convert decision processes into state machines, decision trees, or pseudocode for the model to execute.
-- Model Adjustment:
-  - Enable the model to parse and execute these encoded rules.
+- 提示设计：
 
-### Engineering Practice Example
+  - 在提示中包含退货政策的关键点，要求模型逐步引导客户。
 
+- 模型执行：
 
-**Example**: A customer service chatbot handling return requests.
+  - LLM根据提示与客户互动，按照退货流程提供清晰的指导。
 
-**Scenario**: A customer requests a return. The chatbot needs to guide the customer through the appropriate process according to the company's return policy.
+    **优化策略**：
 
-**Technical Implementation**:
+- 提示优化：
 
-- Rule Integration:
+  - 根据客户反馈调整提示，帮助模型更准确地理解和执行退货流程。
 
-  - Organize the company's return policies and procedures into clear steps or decision trees.
+- 多轮对话：
 
-- Prompt Design:
+  - 支持与客户的多轮对话，处理各种潜在问题和例外情况。
 
-  - Include key points of the return policy within the prompt, requiring the model to guide the customer step by step.
+## 第四级：隐藏推理查询
 
-- Model Execution:
+### 特点
 
-  - The LLM interacts with the customer based on the prompt, following the return process to provide clear guidance.
+- **最高复杂性**：涉及特定领域的隐含推理方法；模型需要从数据中发现并应用这些隐藏的逻辑。
+- **要求**：模型必须能够从大量数据中挖掘模式并应用推理方法，类似于领域专家的思维过程。
 
-    **Optimization Strategies**:
+### 技术与工程建议
 
-- Prompt Optimization:
+#### a. 离线学习与经验积累
 
-  - Adjust prompts based on customer feedback to help the model more accurately understand and execute the return process.
+- 从数据中学习模式和经验：
+  - 训练模型从历史数据和案例中归纳出潜在的规则和逻辑。
+- 自监督学习：
+  - 使用模型生成的推理过程（如思维链）作为辅助信息，优化模型的推理能力。
 
-- Multi-Turn Dialogue:
+#### b. 上下文学习（ICL）
 
-  - Support multiple rounds of conversation with the customer to handle various potential issues and exceptions.
+- 提供示例和案例：
+  - 在提示中包含相关示例，供模型在推理时参考类似案例。
+- 检索相关案例：
+  - 使用检索模块从数据库中查找与当前问题相似的案例，并提供给模型。
 
+#### c. 模型微调
 
+- 领域特定微调：
+  - 使用大量领域数据对模型进行微调，使其内化领域知识。
+- 强化学习：
+  - 使用奖励机制鼓励模型生成期望的推理过程和答案。
 
-## Level 4: Hidden Rationale Queries
+### 工程实践示例
 
-### Characteristics
+**示例**：处理复杂案件的法律助手AI。
 
-- **Highest Complexity**: Involves domain-specific, implicit reasoning methods; the model needs to discover and apply these hidden logics from data.
-- **Requirement**: The model must be capable of mining patterns and reasoning methods from large datasets, akin to the thought processes of domain experts.
+**场景**：用户咨询一个复杂的法律问题。AI需要提供建议，并引用相关法律条款和判例。
 
-### Techniques and Engineering Suggestions
+**技术实现**：
 
-#### a. Offline Learning and Experience Accumulation
+- 数据准备：
 
-- Learning Patterns and Experience from Data:
-  - Train the model to generalize potential rules and logic from historical data and cases.
-- Self-Supervised Learning:
-  - Use the model-generated reasoning processes (e.g., Chain-of-Thought) as auxiliary information to optimize the model's reasoning capabilities.
+  - 收集大量法律文档、案例分析、专家意见等。
 
-#### b. In-Context Learning (ICL)
+- 模型微调：
 
-- Providing Examples and Cases:
-  - Include relevant examples within the prompt for the model to reference similar cases during reasoning.
-- Retrieving Relevant Cases:
-  - Use retrieval modules to find cases similar to the current question from a database and provide them to the model.
+  - 使用法律领域数据对LLM进行微调，使其具备法律推理能力。
 
-#### c. Model Fine-Tuning 
+- 案例检索：
 
-- Domain-Specific Fine-Tuning:
-  - Fine-tune the model using extensive domain data to internalize domain knowledge.
-- Reinforcement Learning:
-  - Employ reward mechanisms to encourage the model to produce desired reasoning processes and answers.
+  - 使用RAG从数据库中检索相关判例和法律条款。
 
-### Engineering Practice Example
+- 答案生成：
 
+  - 将检索到的案例和条款作为上下文输入微调后的LLM，生成专业的法律建议。
 
+    **优化策略**：
 
-**Example**: A legal assistant AI handling complex cases.
+- 持续学习：
 
-**Scenario**: A user consults on a complex legal issue. The AI needs to provide advice, citing relevant legal provisions and precedents.
+  - 定期更新模型，添加新的法律案例和法规变化。
 
-**Technical Implementation**:
+- 专家审查：
 
-- Data Preparation:
+  - 引入法律专家审查模型的输出，确保其准确性和合法性。
 
-  - Collect a large corpus of legal documents, case analyses, expert opinions, etc.
+## 综合考量：结合微调LLM与RAG
 
-- Model Fine-Tuning:
+尽管微调LLM可以增强模型的推理能力和领域适应性，但它不能完全替代RAG的作用。RAG在处理动态、海量和实时更新的知识方面具有独特的优势。结合微调和RAG，可以发挥各自的优势，使模型在具备强大推理能力的同时，能够访问最新、最全面的外部知识。
 
-  - Fine-tune the LLM using legal domain data to equip it with legal reasoning capabilities.
+### 结合的优势
 
-- Case Retrieval:
+- 增强推理能力：
+  - 通过微调，模型学习特定领域的推理方法和逻辑。
+- 实时知识访问：
+  - RAG使模型在生成答案时能够实时检索最新的外部数据。
+- 灵活性与可扩展性：
+  - RAG系统可以轻松更新数据源，而无需重新训练模型。
 
-  - Use RAG to retrieve relevant precedents and legal provisions from a database.
+### 实际应用建议
 
-- Answer Generation:
+- 结合微调与RAG处理复杂任务：
+  - 使用微调增强模型的推理和逻辑能力，同时使用RAG获取特定知识和信息。
+- 评估成本效益：
+  - 考虑微调的成本和收益；专注于微调核心推理能力，让RAG处理知识获取。
+- 持续更新与维护：
+  - 为RAG系统建立数据更新机制，确保模型访问的外部数据是最新且准确的。
 
-  - Input the retrieved cases and provisions as context into the fine-tuned LLM to generate professional legal advice.
+## RAG详细技术解释
 
-    **Optimization Strategies**:
-
-- Continuous Learning:
-
-  - Regularly update the model by adding new legal cases and regulatory changes.
-
-- Expert Review:
-
-  - Incorporate legal experts to review the model's outputs, ensuring accuracy and legality.
-
-
-
-## Comprehensive Consideration: Combining Fine-Tuned LLMs and RAG
-
-
-While fine-tuning LLMs can enhance the model's reasoning ability and domain adaptability, it cannot entirely replace the role of RAG. RAG has unique advantages in handling dynamic, massive, and real-time updated knowledge. Combining fine-tuning and RAG leverages their respective strengths, enabling the model to possess strong reasoning capabilities while accessing the latest and most comprehensive external knowledge.
-
-### Advantages of the Combination
-
-- Enhanced Reasoning Ability:
-  - Through fine-tuning, the model learns domain-specific reasoning methods and logic.
-- Real-Time Knowledge Access:
-  - RAG allows the model to retrieve the latest external data in real-time when generating answers.
-- Flexibility and Scalability:
-  - RAG systems can easily update data sources without the need to retrain the model.
-
-### Practical Application Suggestions
-
-- Combining Fine-Tuning and RAG for Complex Tasks:
-  - Use fine-tuning to enhance the model's reasoning and logic capabilities, while employing RAG to obtain specific knowledge and information.
-- Evaluating Cost-Benefit Ratio:
-  - Consider the costs and benefits of fine-tuning; focus on fine-tuning core reasoning abilities and let RAG handle knowledge acquisition.
-- Continuous Update and Maintenance:
-  - Establish data update mechanisms for the RAG system to ensure the external data accessed by the model is up-to-date and accurate.
-
-## RAG Detailed technical explaination
-
-Retrieval Augmented Generation (RAG) is a technique that combines large language models (LLMs) with information retrieval. It enhances the model's capabilities by retrieving and utilizing relevant information from external knowledge bases during the generation process. This provides the model with up-to-date, domain-specific knowledge, enabling it to generate more accurate and contextually relevant responses.
+检索增强生成（RAG）是一种将大型语言模型（LLM）与信息检索相结合的技术。它通过在生成过程中检索和利用外部知识库中的相关信息，增强模型的能力。这为模型提供了最新的、特定领域的知识，使其能够生成更准确和上下文相关的回答。
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nV8iccIwibpABEdicffYMy77GDXFYUR4MEmsibdwPE4XzSudU52gQL0cBAJeiaId5EltiaHguq952P0e7xg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
-## Purpose of RAG
+## RAG的目的
 
-**Why do we need RAG?**
+**为什么需要RAG？**
 
-- **Reducing Hallucinations**: LLMs may produce inaccurate or false information, known as "hallucinations," when they lack sufficient context. RAG reduces the occurrence of hallucinations by providing real-time external information.
+- **减少幻觉**：当LLM缺乏足够的上下文时，可能会产生不准确或虚假的信息，称为“幻觉”。RAG通过提供实时的外部信息，减少幻觉的发生。
 
-- **Updating Knowledge**: The pre-training data of LLMs may lag behind current information. RAG allows models to access the latest data sources, maintaining the timeliness of information.
+- **更新知识**：LLM的预训练数据可能滞后于当前信息。RAG使模型能够访问最新的数据源，保持信息的时效性。
 
-- **Enhancing Accuracy**: By retrieving relevant background information, the model's answers become more accurate and professional.
+- **提高准确性**：通过检索相关背景信息，模型的回答更加准确和专业。
 
+### RAG的工作原理
+
+RAG的核心思想是从文档库中检索相关信息，并将其与用户的查询一起输入LLM，引导模型生成更准确的答案。一般流程如下：
+
+- **用户查询**：用户向系统提出问题或请求。
+- **检索阶段**：系统使用查询从文档库或知识库中检索相关文档片段（块）。
+- **生成阶段**：将检索到的文档片段与原始查询一起输入LLM，生成最终答案。
+
+### 构建RAG系统的关键步骤
+
+### 明确目标
+
+在开始构建RAG系统之前，首先需要明确目标：
+
+- **升级搜索界面**：是否希望在现有搜索界面中添加语义搜索功能？
+
+- **增强领域知识**：是否希望利用特定领域的知识来增强搜索或聊天功能？
+
+- **添加聊天机器人**：是否希望添加一个聊天机器人与客户互动？
+
+- **暴露内部API**：是否计划通过用户对话暴露内部API？
+
+  明确的目标将指导整个实施过程，并帮助您选择最合适的技术和策略。
+
+### 数据准备
+
+数据是RAG系统的基础，其质量直接影响系统性能。数据准备包括以下步骤：
+
+**(1) 评估数据格式**
+
+- **结构化数据**：如CSV、JSON等，需要转换为文本格式以便索引和检索。
+
+- **表格数据**：可能需要转换或丰富，以支持更复杂的搜索或交互。
+
+- **文本数据**：如文档、文章、聊天记录等，可能需要整理或过滤。
+
+- **图像数据**：包括流程图、文档、照片等。
+
+  **(2) 数据丰富**
+
+- **添加上下文信息**：补充数据，如知识库或行业信息。
+
+- **数据标注**：标注关键实体、概念和关系，增强模型的理解能力。
+
+  **(3) 选择合适的平台**
+
+- **向量数据库**：如AI Search、Qdrant等，用于存储和检索嵌入向量。
+
+- **关系数据库**：数据库模式需要包含在LLM的提示中，以便将用户请求转换为SQL查询。
+
+- **文本搜索引擎**：如AI Search、Elasticsearch、Couchbase，可以与向量搜索结合，发挥文本和语义搜索的优势。
+
+- **图数据库**：构建知识图谱，利用节点之间的连接和语义关系。
+
+## 文档分块
+
+在RAG系统中，文档分块是一个关键步骤，直接影响检索信息的质量和相关性。以下是分块的最佳实践：
+
+- 模型限制：LLM有最大上下文长度限制。
+- 提高检索效率：将大文档分割为较小的块有助于提高检索的准确性和速度。
+
+**分块方法**
+
+- **固定大小分块**：定义固定大小（如200字）的块，并允许一定程度的重叠（如10-15%）。
+- **基于内容的可变大小分块**：根据内容特征（如句子、段落、Markdown结构）进行分块。
+- **自定义或迭代分块策略**：结合固定大小和可变大小方法，并根据具体需求进行调整。
+
+**内容重叠的重要性**
+
+- **保留上下文**：在分块时允许块之间有一定的重叠，有助于保留上下文信息。
+- **建议**：从大约10%的重叠开始，根据具体数据类型和用例进行调整。
+
+## 选择合适的嵌入模型
+
+嵌入模型用于将文本转换为向量形式，以便进行相似度计算。选择嵌入模型时，考虑：
+
+- **模型输入限制**：确保输入文本长度在模型允许的范围内。
+
+- **模型性能和效果**：根据具体应用场景选择性能良好且效果合适的模型。
+
+  ![图片](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/1.png)
+
+**新嵌入模型**：OpenAI推出了两个新的嵌入模型：`text-embedding-3-small`和`text-embedding-3-large`。
+
+**模型大小与性能**：`text-embedding-3-large`是一个更大、更强大的嵌入模型，能够创建最多3072维的嵌入。
+
+**性能改进**：
+
+- **MIRACL基准**：`text-embedding-3-large`在MIRACL基准上得分为**54.9**，相比`text-embedding-ada-002`的**31.4**有显著提升。
+
+- **MTEB基准**：`text-embedding-3-large`在MTEB基准上得分为**64.6**，超过了`text-embedding-ada-002`的**61.0**。
+
+  **改进分析**：
+
+- **更高维度**：`text-embedding-3-large`能够创建最多3072维的嵌入，使其能够更好地捕捉和表示内容中的概念和关系。
+
+- **改进的训练技术**：新模型采用了更先进的训练技术和优化方法，在多语言检索和英语任务上表现更好。
+
+- **灵活性**：`text-embedding-3-large`允许开发者通过调整嵌入的维度来平衡性能和成本。例如，将3072维的嵌入减少到256维，仍然可以在MTEB基准上超过未压缩的`text-embedding-ada-002`。
+
+**注意**：
+
+要从`text-embedding-ada-002`迁移到`text-embedding-3-large`，您需要手动生成新的嵌入，因为嵌入模型之间的升级不是自动的。第一步是在您的Azure环境中部署新模型（text-embedding-3-large）。之后，重新生成所有数据的嵌入，因为旧模型的嵌入与新模型不兼容。
+
+## AI搜索服务的容量与性能优化
+
+### 服务层级与容量
+
+**参考**：*https://learn.microsoft.com/en-us/azure/search/search-limits-quotas-capacity*
+
+- **升级服务层级**：从标准S1升级到S2可以提供更高的性能和存储容量。
+
+- **增加分区和副本**：根据查询负载和索引大小进行调整。
+
+- **避免复杂查询**：减少使用高开销的查询，如正则表达式查询。
+
+- **查询优化**：仅检索所需字段，限制返回的数据量，使用搜索功能而非复杂过滤器。
+
+  ![图片](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/2.png)
+
+  ### 提高Azure AI搜索性能的技巧
+
+  - **索引大小与架构**：定期优化索引；删除不必要的字段和文档。
+  - **查询设计**：优化查询语句，减少不必要的扫描和计算。
+  - **服务容量**：根据查询负载和索引大小适当调整副本和分区。
+  - **避免复杂查询**：减少使用高开销的查询，如正则表达式查询。
+
+  ### 分块大文档
+
+  - **使用内置的文本分割技能**：根据需要选择`pages`或`sentences`模式。
+  - **调整参数**：根据文档特征设置适当的`maximumPageLength`、`pageOverlapLength`等。
+  - **使用LangChain等工具**：进行更灵活的分块和嵌入操作。
+
+  ### L1+L2搜索 + 查询重写与新语义重排序器
+
+  - **L1混合搜索+L2重排序器**：增强搜索结果
+
+    ![图片](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/9.png)
+
+  - **查询重写**：通过重写用户查询来提高召回率和准确性。
   
-
-### How RAG Works
-
-The core idea of RAG is to retrieve relevant information from a document repository and input it into the LLM along with the user's query, guiding the model to generate a more accurate answer. The general process is as follows:
-
-- **User Query**: The user poses a question or request to the system.
-- **Retrieval Phase**: The system uses the query to retrieve relevant document fragments (chunks) from a document repository or knowledge base.
-- **Generation Phase**: The retrieved document fragments are input into the LLM along with the original query to generate the final answer.
-
-
-### Key Steps to Building a RAG System
-
-### Clarify Objectives
-
-Before starting to build a RAG system, you need to first clarify your goals:
-
-- **Upgrade Search Interface**: Do you want to add semantic search capabilities to your existing search interface?
-
-- **Enhance Domain Knowledge**: Do you wish to utilize domain-specific knowledge to enhance search or chat functions?
-
-- **Add a Chatbot**: Do you want to add a chatbot to interact with customers?
-
-- **Expose Internal APIs**: Do you plan to expose internal APIs through user dialogues?
-
-  Clear objectives will guide the entire implementation process and help you choose the most suitable technologies and strategies.
-
-### Data Preparation
-
-Data is the foundation of a RAG system, and its quality directly affects system performance. Data preparation includes the following steps:
-
-**(1) Assess Data Formats**
-
-- **Structured Data**: Such as CSV, JSON, etc., which need to be converted into text format to facilitate indexing and retrieval.
-
-- **Tabular Data**: May need to be converted or enriched to support more complex searches or interactions.
-
-- **Text Data**: Such as documents, articles, chat records, etc., which may need to be organized or filtered.
-
-- **Image Data**: Including flowcharts, documents, photographs, and similar images.
-
+  - **语义重排序器**：使用交叉编码器对候选结果进行重排序，提高结果的相关性。
   
+  ![图片](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/8.png)
 
-  **(2) Data Enrichment**
+***请点击下方图片查看我在Yutube上的查询重写演示视频***：
+[![查询重写演示1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://www.youtube.com/watch?v=uMDOpPzFfsc)
 
-- **Add Contextual Information**: Supplement data with additional textual content, such as knowledge bases or industry information.
+在上面的演示中，我将重写查询的数量从1增加到3，显著提高了搜索结果的准确性。完整的答案应由四个结果组成。当重写查询向量的数量为1时，只能检索到三个结果。
 
-- **Data Annotation**: Label key entities, concepts, and relationships to enhance the model's understanding capabilities.
-
-  
-
-  **(3) Choose the Right Platform**
-
-- **Vector Databases**: Such as AI Search, Qdrant, etc., used for storing and retrieving embedding vectors.
-
-- **Relational Databases**: The database schema needs to be included in the LLM's prompts to translate user requests into SQL queries.
-
-- **Text Search Engines**: Like AI Search, Elasticsearch, Couchbase, which can be combined with vector search to leverage both text and semantic search advantages.
-
-- **Graph Databases**: Build knowledge graphs to utilize the connections and semantic relationships between nodes.
-
-## Document Chunking
-
-In a RAG system, document chunking is a critical step that directly affects the quality and relevance of the retrieved information. Below are the best practices for chunking:
-
-- Model Limitations: LLMs have a maximum context length limitation.
-- Improve Retrieval Efficiency: Splitting large documents into smaller chunks helps to improve retrieval accuracy and speed.
-
-**Methods to do chunking**
-
-- **Fixed-Size Chunking**: Define a fixed size (e.g., 200 words) for chunks and allow a certain degree of overlap (e.g., 10-15%).
-- **Content-Based Variable-Size Chunking**: Chunk based on content features (such as sentences, paragraphs, Markdown structures).
-- **Custom or Iterative Chunking Strategies**: Combine fixed-size and variable-size methods and adjust according to specific needs.
-
-**Importance of Content Overlap**
-
-- **Preserve Context**: Allowing some overlap between chunks during chunking helps to retain contextual information.
-- **Recommendation**: Start with about 10% overlap and adjust based on specific data types and use cases.
-
-
-
-## Choosing the Right Embedding Model
-
-Embedding models are used to convert text into vector form to facilitate similarity computation. When choosing an embedding model, consider:
-
-- **Model Input Limitations**: Ensure the input text length is within the model's allowable range.
-
-- **Model Performance and Effectiveness**: Choose a model with good performance and suitable effectiveness based on the specific application scenario.
-
-  ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/1.png)
-
-**New Embedding Models**: OpenAI has introduced two new embedding models: `text-embedding-3-small` and `text-embedding-3-large`.
-
-**Model Size and Performance**: `text-embedding-3-large` is a larger and more powerful embedding model capable of creating embeddings with up to 3,072 dimensions.
-
-**Performance Improvements**:
-
-- **MIRACL Benchmark**: `text-embedding-3-large` scored **54.9** on the MIRACL benchmark, showing a significant improvement over `text-embedding-ada-002` which scored **31.4**.
-
-- **MTEB Benchmark**: `text-embedding-3-large` scored **64.6** on the MTEB benchmark, surpassing `text-embedding-ada-002` which scored **61.0**.
-
-  **Analysis of Improvements**:
-
-- **Higher Dimensions**: The ability of `text-embedding-3-large` to create embeddings with up to 3,072 dimensions allows it to better capture and represent the concepts and relationships within the content.
-
-- **Improved Training Techniques**: The new model employs more advanced training techniques and optimization methods, resulting in better performance on multilingual retrieval and English tasks.
-
-- **Flexibility**: `text-embedding-3-large` allows developers to balance performance and cost by adjusting the dimensionality of the embeddings. For example, reducing the 3,072-dimensional embeddings to 256 dimensions can still outperform the uncompressed `text-embedding-ada-002` on the MTEB benchmark.
-
-**Note**:
-
-To migrate from `text-embedding-ada-002` to `text-embedding-3-large`, you'll need to manually generate new embeddings, as upgrading between embedding models is not automatic. The first step is to deploy the new model (text-embedding-3-large) within your Azure environment. After that, re-generate embeddings for all your data, as embeddings from the previous model will not be compatible with the new one.
-
-## AI Search Service Capacity and Performance Optimization
-
-### Service Tiers and Capacity
-
-**Refer to**: *https://learn.microsoft.com/en-us/azure/search/search-limits-quotas-capacity*
-
-- **Upgrade Service Tier**: Upgrading from Standard S1 to S2 can provide higher performance and storage capacity.
-
-- **Increase Partitions and Replicas**: Adjust based on query load and index size.
-
-- **Avoid Complex Queries**: Reduce the use of high-overhead queries, such as regular expression queries.
-
-- **Query Optimization**: Retrieve only the required fields, limit the amount of data returned, and use search functions rather than complex filters.
-
-  ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/2.png)
-
-  ### Tips for Improving Azure AI Search Performance
-
-  - **Index Size and Architecture**: Regularly optimize the index; remove unnecessary fields and documents.
-  - **Query Design**: Optimize query statements to reduce unnecessary scanning and computation.
-  - **Service Capacity**: Adjust replicas and partitions appropriately based on query load and index size.
-  - **Avoid Complex Queries**: Reduce the use of high-overhead queries, such as regular expression queries.
-
-  ### Chunking Large Documents
-
-  - **Use Built-in Text Splitting Skills**: Choose modes like `pages` or `sentences` based on needs.
-  - **Adjust Parameters**: Set appropriate `maximumPageLength`, `pageOverlapLength`, etc., based on document characteristics.
-  - **Use Tools Like LangChain**: For more flexible chunking and embedding operations.
-
-  ### L1+L2 Search + Query Rewriting and New Semantic Reranker
-
-  - **L1 Hybrid Search+L2 Re-ranker**：Enhance search result
-
-    ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/9.png)
-
-  - **Query Rewriting**: Improve recall rate and accuracy by rewriting user queries.
-  
-  - **Semantic Reranker**: Use cross-encoders to re-rank candidate results, enhancing result relevance.
-  
-  ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/8.png)
-
-***Please click below pictures to see my Query Rewriting demo video on Yutube***:
-[![Query-Rwritting-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://www.youtube.com/watch?v=uMDOpPzFfsc)
-
-In the demo above for reference, I increased the number of rewritten queries from 1 to 3, which significantly improved the accuracy of the search results. The complete answer should consist of four results. When the number of rewritten query vectors is 1, only three results can be retrieved.
-
-Sample code：
+示例代码：
 
 ```
 import requests  
@@ -484,15 +458,15 @@ payload = {
   
 response = requests.post(url, params=params, headers=headers, json=payload)  
   
-print('Status Code:', response.status_code)  
-print('Response Body:', json.dumps(response.json(), indent=2, ensure_ascii=False))  
+print('状态码:', response.status_code)  
+print('响应体:', json.dumps(response.json(), indent=2, ensure_ascii=False))  
 ```
 
-Output:
+输出：
 
 ```
-Status Code: 200
-Response Body: {
+状态码: 200
+响应体: {
   "@odata.context": "https://ai-search-eastus-xinyuwei.search.windows.net/indexes('wukong-doc1')/$metadata#docs(*)",
   "@search.debug": {
     "semantic": null,
@@ -500,11 +474,11 @@ Response Body: {
       "text": {
         "inputQuery": "What the hell is Black Myth Goku?",
         "rewrites": [
-          "Black Myth Goku game details",
-          "What is Black Myth Goku?",
-          "Explanation of Black Myth Goku",
-          "Understanding Black Myth Goku",
-          "Guide to Black Myth Goku"
+          "Black Myth Goku游戏详情",
+          "什么是Black Myth Goku？",
+          "Black Myth Goku的解释",
+          "理解Black Myth Goku",
+          "Black Myth Goku指南"
         ]
       },
       "vectors": []
@@ -516,280 +490,35 @@ Response Body: {
       "@search.rerankerScore": 2.3498611450195312,
 ```
 
-## Prompt Engineering
+## 提示工程
 
-1. **Use Rich Examples**: Provide multiple examples to guide the model's learning and improve its responses.
-2. **Provide Clear Instructions**: Ensure that instructions are explicit and unambiguous to avoid misunderstandings.
-3. **Restrict Input and Output Formats**: Define acceptable input and output formats to prevent malicious content and protect model security.
+1. **使用丰富的示例**：提供多个示例以引导模型学习并改进其回答。
+2. **提供清晰的指令**：确保指令明确且无歧义，以避免误解。
+3. **限制输入和输出格式**：定义可接受的输入和输出格式，防止恶意内容并保护模型安全。
 
-**Note:** Prompt Engineering is not suitable for Azure OpenAI o1
+**注意**：提示工程不适用于Azure OpenAI o1
 
-Reference: *https://mp.weixin.qq.com/s/tLcAfPU6hUkFsNMjDFeklw?token=1531586958&lang=zh_CN*
+参考：*https://mp.weixin.qq.com/s/tLcAfPU6hUkFsNMjDFeklw?token=1531586958&lang=zh_CN*
 
 ```
 
-Your task is to review customer questions and categorize them into one of the following 4 types of problems.
+您的任务是审查客户问题并将其分类为以下4种问题类型之一。
 
-The review steps are as follows, please perform step by step:
+审查步骤如下，请逐步执行：
 
-1. Extract three keywords from customer questions and translate them into English. Please connect the three keywords with commas to make it a complete JSON value.
+1. 从客户问题中提取三个关键词并将其翻译成英文。请将这三个关键词用逗号连接，使其成为一个完整的JSON值。
 
-2. Summarize the customer’s questions in 15 more words and in English.
+2. 用15个单词总结客户的问题，并用英文表达。
 
-3. Categorize the customer’s questions based on Review text and summary. Category list:
-    • Technical issue: customer is experiencing server-side issues, client errors or product limitations. Example: "I'm having trouble logging into my account. It keeps saying there's a server error."
-    • Product inquiry: customer would like to know more details about the product or is asking questions about how to use it. Example: "Can you provide more information about the product and how to use it?"
-    • Application status: customer is requesting to check the status of their Azure OpenAI, GPT-4 or DALLE application. Example: "What is the status of my Azure OpenAI application?"
-    • Unknown: if you only have a low confidence score to categorize. Example: "I'm not sure if this is the right place to ask, but I have a question about billing."
+3. 根据审查文本和总结对客户的问题进行分类。分类列表：
+    • 技术问题：客户遇到服务器端问题、客户端错误或产品限制。示例：“我无法登录我的账户。它一直显示服务器错误。”
+    • 产品咨询：客户希望了解更多产品详情或询问如何使用产品。示例：“你能提供更多关于产品的信息以及如何使用它吗？”
+    • 申请状态：客户要求检查其Azure OpenAI、GPT-4或DALLE申请的状态。示例：“我的Azure OpenAI申请状态如何？”
+    • 未知：如果您只有低置信度进行分类。示例：“我不确定这是否是正确的地方，但我有一个关于账单的问题。”
 
-Provide them in JSON format with the following keys: Case id; Key-words; Summary; Category. Please generate only one JSON structure per review.
+以JSON格式提供，包含以下键：案例ID；关键词；总结；类别。每个审查只生成一个JSON结构。
 
-Please show the output results - in a table, the table is divided into four columns: Case ID, keywords, Summary, Category.
+请以表格形式显示输出结果，表格分为四列：案例ID、关键词、总结、类别。
 ```
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWf6Iogb0ScBpSFibiavMUk2TohHj9WylLC68Q6yDGOS8hG6PHWqiavicIVNbFbVCWYeKEBMDQ1eg3hRA/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-
-
-
-## Demo1: Lenovo ThinkPad Product
-
-I have a Lenovo ThinkPad product manual, and I want to build a RAG (Retrieval-Augmented Generation) system based on it. The document includes up to dozens of product models, many of which have very similar names. Moreover, the document is nearly 900 pages long. Therefore, to construct a RAG system based on this document and provide precise answers, I need to address the following issues:
-
-1. **How to split the document;**
-2. **How to avoid loss of relevance;**
-3. **How to resolve information discontinuity;**
-4. **The problem of low search accuracy due to numerous similar products;**
-5. **The challenge of diverse questioning on the system's generalization ability.**
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/6.png)
-
-In the end, I chunked the document based on the product models and set more effective prompts, so that the RAG (Retrieval-Augmented Generation) system can accurately answer questions.
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/7.png)
-
-
-
-System prompt
-
-```
-You are an AI assistant that helps people answer the question of Lenovo product.
-Please be patient and try to answer your questions in as much detail as possible and give the reason. When you use reference documents, please list the file names directly, not only Citation 1, should be ThinkPad E14 Gen 4 (AMD).pdf.txt eg.
-
-```
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/3.png)
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/4.png)
-
-Index format is as following:
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/5.png)
-
-
-
-Final Result：
-
-***Please click below pictures to see my demo vedios on Yutube***:
-[![RAG-DEMO1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/4DyI6n5UrKw)
-
-
-
-## Demo 2: Text and Image Hybrid Search
-
-There is a Microsoft D365 CSS support document.
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/10.png)
-
-The doc has has words and images, I create 2 index for it, one is for whole doc, another is for images from this doc:
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/11.png)
-
-Then I write a Python program, do hybrid search on 2 index
-
-``` 
-# Azure AI Search配置  
-search_service_url = 'https://ai-search-eastus-xinyuwei.search.windows.net'  
-search_api_version = '2024-11-01-preview'  
-search_api_key = '*'  # 替换为您的实际 Search API 密钥  
-text_index_name = 'azureblob-index'  
-image_index_name = 'vector-1734168453283'  
-  
-# Azure OpenAI配置  
-openai_endpoint = 'https://aoai-eastus2111.openai.azure.com/openai/deployments/gpt-4o-2/chat/completions?api-version=2024-08-01-preview'  
-openai_api_key = '*'  # 替换为您的实际 OpenAI API 密钥  
-  
-# Azure Blob Storage配置  
-blob_service_client = BlobServiceClient(  
-    account_url="https://sasasasasa111111.blob.core.windows.net/",  
-    credential="*"  # 替换为您的实际 Blob 存储账户密钥  
-)  
-  
-def generate_sas_token(container_name, blob_name):  
-    sas_token = generate_blob_sas(  
-        account_name=blob_service_client.account_name,  
-        container_name=container_name,  
-        blob_name=blob_name,  
-        account_key=blob_service_client.credential.account_key,  
-        permission=BlobSasPermissions(read=True),  
-        expiry=datetime.utcnow() + timedelta(hours=1)  # 设置SAS令牌的过期时间  
-    )  
-    return sas_token  
-  
-def search_index(index_name, query, top=2):  
-    url = f"{search_service_url}/indexes/{index_name}/docs/search?api-version={search_api_version}"  
-    headers = {  
-        'Content-Type': 'application/json',  
-        'api-key': search_api_key  
-    }  
-    data = {  
-        "search": query,  
-        "top": top  # 限制返回的结果数量  
-    }  
-    response = requests.post(url, headers=headers, data=json.dumps(data))  
-    return response.json()  
-  
-def query_gpt4(messages):  
-    headers = {  
-        'Content-Type': 'application/json',  
-        'api-key': openai_api_key  
-    }  
-    data = {  
-        "messages": messages,  
-        "max_tokens": 4096  
-    }  
-    response = requests.post(openai_endpoint, headers=headers, data=json.dumps(data))  
-  
-    # 检查响应状态码  
-    if response.status_code != 200:  
-        print(f"请求失败，状态码：{response.status_code}")  
-        print(f"响应内容：{response.text}")  
-        return None  
-  
-    return response.json()  
-  
-def process_question(question):  
-    # 查询图片索引  
-    image_results = search_index(image_index_name, question)  
-  
-    # 查询文本索引  
-    text_results = search_index(text_index_name, question)  
-  
-    # 汇总结果并分配权重  
-    combined_results = []  
-  
-    # 假设图片结果权重为0.6，文本结果权重为0.4  
-    image_weight = 0.6  
-    text_weight = 0.4  
-  
-    # 为结果添加类型标记  
-    for result in image_results.get('value', []):  
-        result['weighted_score'] = result.get('@search.score', 0) * image_weight  
-        result['result_type'] = 'image'  # 添加类型标记  
-        combined_results.append(result)  
-  
-    for result in text_results.get('value', []):  
-        result['weighted_score'] = result.get('@search.score', 0) * text_weight  
-        result['result_type'] = 'text'  # 添加类型标记  
-        combined_results.append(result)  
-  
-    # 根据加权得分排序  
-    combined_results.sort(key=lambda x: x['weighted_score'], reverse=True)  
-  
-    # 构建GPT-4的输入  
-    system_prompt = {  
-        "role": "system",  
-        "content": (  
-            "You are an AI chatbot that helps Lenovo employees answer questions related to Lenovo processes. "  
-            "1. You need to respond in the same language as the user's question. For example, if the user asks in Chinese, you should respond in Chinese. "  
-            "2. When answering questions, please proactively mention the name and link of the reference document. "  
-            "If it is a flowchart, you need to specifically point out the location of the flowchart, as we need to render the image using markdown，So if it's a flowchart, you need to get the address of the flowchart image, not the address of the document it's in, otherwise you can't render it."  
-        )  
-    }  
-  
-    user_prompt = {"role": "user", "content": question}  
-    combined_results_prompt = {"role": "system", "content": json.dumps(combined_results[:5], indent=2, ensure_ascii=False)}  
-  
-    messages = [system_prompt, user_prompt, combined_results_prompt]  
-  
-    # 提交给GPT-4  
-    gpt4_response = query_gpt4(messages)  
-  
-    # 检查响应内容  
-    if gpt4_response is None or 'choices' not in gpt4_response:  
-        print("GPT-4响应中没有'choices'键")  
-        return "无法获取答案，请稍后再试。", []  
-  
-    # 获取GPT-4的答案  
-    answer = gpt4_response['choices'][0]['message']['content']  
-  
-    # 生成SAS URL  
-    urls = []  
-    for result in combined_results:  
-        if result.get('result_type') == 'image' and 'metadata_storage_path' in result:  
-            blob_url = result['metadata_storage_path']  
-            if blob_url:  
-                parts = blob_url.split('/')  
-                if len(parts) >= 2:  
-                    container_name, blob_name = parts[-2], parts[-1]  
-                    try:  
-                        sas_token = generate_sas_token(container_name, blob_name)  
-                        sas_url = f"{blob_url}?{sas_token}"  
-                        urls.append(sas_url)  
-                    except Exception as e:  
-                        print(f"生成SAS令牌时出错：{e}")  
-                else:  
-                    print(f"Blob URL '{blob_url}' 格式不正确。")  
-            else:  
-                print("Blob URL 为空。")  
-  
-    return answer, urls  
-  
-def display_image(url):  
-    try:  
-        # 发送HTTP请求获取图片  
-        response = requests.get(url)  
-  
-        # 检查请求是否成功  
-        if response.status_code == 200:  
-            # 将图片数据转换为字节流  
-            image_data = BytesIO(response.content)  
-  
-            # 使用PIL打开图片  
-            image = Image.open(image_data)  
-  
-            # 使用matplotlib展示图片  
-            plt.imshow(image)  
-            plt.axis('off')  # 关闭坐标轴  
-            plt.show()  
-        else:  
-            print(f"无法从 {url} 获取图片。HTTP 状态码：{response.status_code}")  
-    except Exception as e:  
-        print(f"从 {url} 获取图片时发生错误：{e}")  
-  
-def extract_image_urls_from_markdown(markdown_text):  
-    # 使用正则表达式提取Markdown中的图片链接  
-    pattern = r'!\[.*?\]\((.*?)\)'  
-    return re.findall(pattern, markdown_text)  
-```
-
-Run following script and input question
-
-```
-if __name__ == "__main__":  
-    question = input("请输入您的问题：")  
-    answer, urls = process_question(question)  
-    print(f"问题：{question}")  
-    print(f"回答：{answer}")  
-  
-    # 提取并展示回答中的图片链接  
-    image_urls = extract_image_urls_from_markdown(answer)  
-    for image_url in image_urls:  
-        display_image(image_url)  
-  
-    print("相关链接：")  
-    for url in urls:  
-        print(url)  
-```
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/12.png)
